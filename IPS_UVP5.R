@@ -1,4 +1,4 @@
-setwd("D:/IPS Amundsen 2018/UVP5")
+setwd("C:/Users/Julek Chawarski/OneDrive - Memorial University of Newfoundland/PhD @ MUN/SentinelNorth-IPS")
 library(data.table)
 library(scatterpie)
 library(tidyverse)
@@ -27,7 +27,7 @@ ggplot(dat.df, aes(sample_stationid, fill=object_annotation_category)) + geom_hi
 dat.df <- droplevels( dat.df[-which(dat.df$sample_stationid == "006"),])
 
 #plot all samples
-ggplot(dat.df, aes(object_annotation_category)) + geom_histogram(stat="count")  + theme(axis.text.x = element_text(angle = 45, hjust = 1)
+ggplot(dat.df, aes(object_annotation_category)) + geom_histogram(stat="count")  + theme(axis.text.x = element_text(angle = 45, hjust = 1))
 #remove species with low sample size
 dat.df <- droplevels( dat.df[-which(dat.df$object_annotation_category %in% c("Acantharea", "Crustacea", "Mollusca", "Siphonophorae", "Gnathostomata", "Cladocera")),])
 
@@ -77,10 +77,61 @@ ggplot(data.cop, aes(x=object_depth_max)) +
                                   theme_bw() +
                                     theme(axis.text.x = element_text(angle = 45, vjust=0.5)) 
 
+#density curve plot
+
+# station 1 : #1f77b4
+# station 2 : #ff7f0e
+# station 3 : #2ca02c
+# station 4 : #d62728
+# station 5 : #9467bd
+# station 6 : #8c564b
 
 
 
-ggplot(data.cop, aes(x=object_depth_max, y=bio_vol, col=station)) +  #stat_ecdf(pad=F, n=1000) +
+data.cop <- data.cop %>% mutate(station=recode_factor(station, "005" = "Station 2",
+                                                         "004" = "Station 3" , 
+                                                         "003" = "Station 4",
+                                                         "002" = "Station 5",
+                                                         "001" = "Station 6",
+                                                         "float" = "float")) %>%
+  filter(!station %in% "float") %>%
+  mutate(station = factor(station, levels = c("Station 2",
+                                              "Station 3",
+                                              "Station 4",
+                                              "Station 5",
+                                              "Station 6")))
+                                                         
+
+cop.plot1 <- data.cop %>% filter(!station %in% NA) %>%
+ggplot(., aes(x=object_depth_max,  fill=station)) + 
+  geom_density(alpha=.4, bw=50) +
+  scale_fill_manual(values = c("#ff7f0e","#2ca02c","#d62728","#9467bd","#8c564b")) +
+  labs(x="Depth [m]") +              
+  coord_flip() +
+  scale_x_reverse(breaks=c(0,200,400,600,800,1000)) +                       #ADJUST BASED ON STN DEPTH
+  scale_y_continuous(labels=function(n){format(n, scientific = T)}) + 
+   theme_minimal(base_size=12) + theme(axis.text.x = element_text(angle = 45, vjust=0.5),
+                                       legend.position = "none", 
+                                       axis.title.y= element_blank())
+
+
+ cop.plot2 <-        data.cop %>% filter(!station %in% NA) %>%
+        ggplot(., aes(y=object_depth_max, x=station, fill=station)) + 
+          geom_boxplot(alpha=.4) + 
+          geom_jitter(alpha=0.4) +
+          scale_fill_manual(values = c("#ff7f0e","#2ca02c","#d62728","#9467bd","#8c564b")) +
+          labs(y="Depth [m]") +              
+            scale_y_reverse(breaks=c(0,200,400,600,800,1000)) +                       #ADJUST BASED ON STN DEPTH
+         theme_minimal(base_size=12) + theme(axis.title.x = element_blank(),
+                                             axis.text.x = element_text(angle = 45, vjust=0.5),
+                                             legend.position = "none")
+
+plot_grid(cop.plot2, cop.plot1, ncol=2, rel_widths = c(3:1), align="hv")
+
+
+
+
+ggplot(data.cop, aes(x=object_depth_max, y=bio_vol, col=station)) +  stat_ecdf(pad=F, n=1000) +
  geom_col(width=10, col="black", fill="#00BD5C", alpha=0.7) +  
   labs(x="Depth (m)", y=expression(paste("Biovolume (", mu, "L)")), title= "Copepoda Biovolume") +             
   facet_grid(~station) +
@@ -315,13 +366,184 @@ plot(dat.df$object_area, dat.df$object_depth_min)
 
 #trim the two outliers
 data.cop <- subset(data.cop, object_area < 1000)
+ggplot(data.cop, aes(x=bio_vol, y=object_depth_max)) + geom_point() +  
+  facet_wrap(~station) + scale_y_reverse()
 
-ggplot(data.cop, aes(x=bio_vol, y=object_depth_max)) + geom_point() +  + facet_wrap(~station) + scale_y_reverse()
+
+#non-living partilces
+
+det.df <- ecotax.df %>% filter(object_annotation_category %in% "detritus")
+#pixel size in micrometer (um)
+pix.um <- unique(det.df$process_pixel)
+
+#Ellipsoid biovolume
+#Spherical Volume = V (mm3) = 4/3 x ??? x [ (Major(mm)/2) x (Minor(mm)/2) x (Minor(mm)/2) ] units (mm^3)
+det.df$sphere_vol <- 4/3 * pi * ((det.df$object_major*pix.um/2)*(det.df$object_minor*pix.um/2)*(det.df$object_minor*pix.um/2))
 
 
-+ geom_path(aes(group=object_depth_max)) 
+det.df <- det.df %>% mutate(station=recode_factor(sample_stationid, "005" = "Station 2",
+                                                      "004" = "Station 3" , 
+                                                      "003" = "Station 4",
+                                                      "002" = "Station 5",
+                                                      "001" = "Station 6",
+                                                      "float" = "float")) %>%
+  filter(!station %in% "float") %>%
+  mutate(station = factor(station, levels = c("Station 2",
+                                              "Station 3",
+                                              "Station 4",
+                                              "Station 5",
+                                              "Station 6")))
 
-ggplot(data.cop, aes(x=bio_vol, y=object_depth_min)) + geom_bar()
+
+
+
+ggplot(det.df, aes(x=object_depth_max,  fill=station)) + 
+  #geom_histogram(bw=10) +
+  geom_density(alpha=.4, bw=25) + 
+  scale_fill_manual(values = c("#ff7f0e","#2ca02c","#d62728","#9467bd","#8c564b")) +
+  labs(x="Depth [m]", title= "Copepoda Vertical Density") +              
+  coord_flip() +
+  scale_x_reverse(breaks=c(0,200,400,600,800,1000)) +                       #ADJUST BASED ON STN DEPTH
+  scale_y_continuous(labels=function(n){format(n, scientific = T)}) + 
+  theme(axis.text.x = element_text(angle = 45, vjust=0.5)) + theme_minimal()
+
+
+
+data.cop <- ecotax.df %>% filter(object_annotation_category %in% c("Copepoda", "like<Copepoda")) %>%
+   mutate(station=recode_factor(sample_stationid, "005" = "Station 2",
+                                   "004" = "Station 3" , 
+                                   "003" = "Station 4",
+                                   "002" = "Station 5",
+                                   "001" = "Station 6",
+                                   "float" = "float")) %>%
+  filter(!station %in% "float") %>%
+  mutate(station = factor(station, levels = c("Station 2",
+                                              "Station 3",
+                                              "Station 4",
+                                              "Station 5",
+                                              "Station 6"))) %>%
+  filter(object_depth_max < 500)
+
+
+
+morph <- data.cop %>% #filter(object_annotation_category %in% "Copepoda") %>%
+  select(object_major,
+                    object_minor,
+                    object_area,
+                    object_feret,
+                    object_perim., 
+                    object_circ.,
+                    object_elongation, 
+                    object_thickr, 
+                    object_symetriev,
+                    object_symetrievc,
+                    object_mean,
+                    object_median,
+                    object_histcum3,
+                    object_stddev, 
+                    object_skew,
+                    object_fractal)
+
+morph$object_complex1 <- morph$object_perim./morph$object_major
+morph$object_complex2 <- morph$object_perim./morph$object_feret
+
+morph <- data.frame(scale(morph))
+
+morph_scaled <- data.frame(matrix(NA, nrow = nrow(morph), ncol = 18))
+morph_scaled$major <- predict(boxcox(morph$object_major, standardize=T))
+morph_scaled$minor <- predict(boxcox(morph$object_minor, standardize=T))
+morph_scaled$area <- predict(boxcox(morph$object_area, standardize=T))
+morph_scaled$feret <- predict(boxcox(morph$object_feret, standardize=T))
+morph_scaled$perim <- predict(boxcox(morph$object_perim., standardize=T))
+morph_scaled$circ <- predict(boxcox(morph$object_circ., standardize=T))
+morph_scaled$elongation <- predict(boxcox(morph$object_elongation, standardize=T))
+morph_scaled$thickr <- predict(boxcox(morph$object_thickr, standardize=T))
+morph_scaled$symetriev <- predict(boxcox(morph$object_symetriev, standardize=T))
+morph_scaled$symetrievc <- predict(boxcox(morph$object_symetrievc+0.1, standardize=T))
+morph_scaled$mean <- predict(boxcox(morph$object_mean, standardize=T))
+morph_scaled$median <- predict(boxcox(morph$object_median, standardize=T))
+morph_scaled$stddev <- predict(boxcox(morph$object_stddev, standardize=T))
+morph_scaled$histcum3 <- predict(boxcox(morph$object_histcum3, standardize=T))
+morph_scaled$skew <- predict(boxcox(morph$object_skew+7.796, standardize = T))
+morph_scaled$fractal <- predict(boxcox(morph$object_fractal, standardize = T))
+morph_scaled$complex1 <- predict(boxcox(morph$object_complex1, standardize = T))
+morph_scaled$complex2 <- predict(boxcox(morph$object_complex2, standardize = T))
+
+morph_scaled <- morph_scaled[,19:36]
+
+
+morph_scaled$ <- morph_scaled %>% mutate(type = case_when(cluster_id < 1 ~ "Resonant",
+                                                                    cluster_id >0 & cluster_id <29 ~ "Complex",
+                                                                    cluster_id > 28 ~ "Flat"))
+
+morph.pca <- prcomp(morph, scale. = T, center = T)
+morph.pca <- prcomp(morph_scaled, scale. = F, center=T)
+
+
+
+station <- data.cop %>% 
+ #filter(object_annotation_category %in% "Copepoda") %>% 
+  select(station)
+station <- as.factor(station)
+
+library(factoextra)
+fviz_pca_ind(morph.pca, col.ind=station$station, 
+             palette = c("#ff7f0e","#2ca02c","#d62728","#9467bd","#8c564b"))
+pc12 <- fviz_pca_var(morph.pca)
+pc34 <-  fviz_pca_var(morph.pca, axes=c(3,4))
+fviz_contrib(morph.pca, choice = "var", axes = 1, top = 10)
+
+eigen <- get_eigenvalue(morph.pca)
+
+res.ind <- get_pca_ind(morph.pca)
+
+pc1 <-  data.frame(res.ind$coord[,1])
+pc1$station <- station$station
+colnames(pc1)[1] <- "size_pc"
+pc1.plot <-  pc1 %>% filter(!station %in% NA) %>%
+    ggplot(., aes(x=station, y=size_pc, fill=station)) + 
+      scale_fill_manual(values = c("#ff7f0e","#2ca02c","#d62728","#9467bd","#8c564b")) +
+      geom_jitter(alpha=0.4) + 
+      geom_boxplot(alpha=0.5) + 
+      ylab("PC1 [Size]") + 
+      theme_minimal(base_size=12) + theme(axis.title.x = element_blank(),
+                                          axis.text.x = element_blank(), 
+                                          legend.position="none")
+
+pc2 <-  data.frame(res.ind$coord[,2])
+pc2$station <- station$station
+colnames(pc2)[1] <- "shape_pc"
+pc2.plot <-  pc2 %>% filter(!station %in% NA) %>%
+  ggplot(., aes(x=station, y=shape_pc, fill=station)) + 
+  scale_fill_manual(values = c("#ff7f0e","#2ca02c","#d62728","#9467bd","#8c564b")) +
+  geom_jitter(alpha=0.4) + 
+  geom_boxplot(alpha=0.5) + 
+  ylab("PC2 [Shape]") + 
+  theme_minimal(base_size=12) + theme(axis.title.x = element_blank(),
+                                      axis.text.x = element_blank(), 
+                                      legend.position="none")
+
+
+pc3 <-  data.frame(res.ind$coord[,3])
+pc3$station <- station$station
+colnames(pc3)[1] <- "trans_pc"
+pc3.plot <- pc3 %>% filter(!station %in% NA) %>%
+  ggplot(., aes(x=station, y=trans_pc, fill=station)) + 
+  scale_fill_manual(values = c("#ff7f0e","#2ca02c","#d62728","#9467bd","#8c564b")) +
+  geom_jitter(alpha=0.4) + 
+  geom_boxplot(alpha=0.5) + 
+  ylab("PC3 [Transparency]") + 
+  theme_minimal(base_size=12) + theme(axis.title.x = element_blank(),
+                                      legend.position="none")
+
+pc4 <-  data.frame(res.ind$coord[,4])
+pc4$station <- station$station
+colnames(pc4)[1] <- "av_pc"
+ggplot(pc4, aes(x=station, y=av_pc)) + geom_boxplot() + geom_point()
+
+
+plot_grid(pc1.plot, pc2.plot, pc3.plot, ncol=1, align="hv")
+plot_grid(pc1, pc2)
 
 #calculate distance between points
 install.packages("geosphere")
@@ -426,34 +648,6 @@ library(akima)
                                       scale_y_reverse() 
                            
                                 
-#DMS vertical plot
-                         
-dms.dat <- read.csv("IPS_2018_DMS.csv")
-
-
-ggplot(dms.dat, aes(x=DMS.concentration..nM., y=depth..m., color=Station)) + 
-          geom_point(size=2) + 
-            geom_line(size=1) + 
-              scale_y_reverse() +
-                  scale_color_brewer(palette ="Spectral") + 
-                      labs(y="Depth (m)", x= "DMS Concentration (nM)", title="DMS by Station") +
-                            theme(panel.grid.major =element_line(colour = "snow3",size=0.5),         #theme
-                                  panel.grid.minor = element_line(colour = "snow3",size=0.5), 
-                                  plot.title = element_text(hjust=0.5),
-                                  text = element_text(size=15), 
-                                  legend.direction = "vertical",
-                                  legend.position = "right",
-                                  legend.background = element_blank(),
-                                  legend.text = element_text(size=10),
-                                  legend.title = element_text(face="bold"),
-                                  panel.background = element_blank(),
-                                  axis.line = element_line(colour = "white"),
-                                  axis.text.y = element_text(size=10), 
-                                  axis.text.x = element_text(size=10),
-                                  axis.title.x = element_text(size=10),
-                                  axis.title.y = element_text(size=10),
-                                  panel.ontop = F) 
-
 
 
   
